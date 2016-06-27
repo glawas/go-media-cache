@@ -10,11 +10,11 @@ import (
     "io/ioutil"
     "path"
     b64 "encoding/base64"
-	vips "github.com/daddye/vips"
+    vips "github.com/daddye/vips"
 )
 
 type Configuration struct {
-    DvidsServer string
+    MediaServer string
 }
 
 type ImgParams struct {
@@ -71,7 +71,7 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
 	    http.NotFound(w, r)
     	return
     }
-    
+
     options := vips.Options{
     	Width:	int(params.Width),
     	Height: int(params.Height),
@@ -81,7 +81,7 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
     	Gravity:	vips.CENTRE,
     	Quality:	95,
     }
-    
+
 	file, _ := os.Open(file_path)
 	inBuf, _ := ioutil.ReadAll(file)
 	buf, err := vips.Resize(inBuf, options)
@@ -89,9 +89,9 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
 	    http.NotFound(w, r)
     	return
     }
-	
+
 	file.Close();
-    
+
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Content-Size", string(len(buf)))
 	w.Write(buf)
@@ -112,7 +112,7 @@ func getImage(file_name string) error {
         return err
     }
     config, _ := getConfig()
-    uri := config.DvidsServer + "/" + file_name
+    uri := config.MediaServer + "/" + file_name
     return DownloadToFile(uri, file_name)
 }
 
