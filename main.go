@@ -9,27 +9,18 @@ import (
     "strings"
     "io/ioutil"
     "path"
-    b64 "encoding/base64"
     vips "github.com/daddye/vips"
+    "strconv"
 )
 
 type Configuration struct {
     MediaServer string
 }
 
-type ImgParams struct {
-	Type string
-	Id string
-	Date string
-	Width uint
-	Height uint
-}
-
 func main() {
-    http.HandleFunc("/media/photos/", handleImage)
-    http.HandleFunc("/media/frames/", handleImage)
+    http.HandleFunc("/download", handleImage)
     http.HandleFunc("/thumbnail/", thumbnailHandler)
-    log.Fatal(http.ListenAndServe(":8080", nil))
+    log.Fatal(http.ListenAndServe(":8888", nil))
 }
 
 func getConfig() (Configuration , error) {
@@ -40,46 +31,43 @@ func getConfig() (Configuration , error) {
 }
 
 func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
-    file_name := strings.Trim(r.RequestURI, "/")
-    image_hash := strings.Replace(strings.Trim(file_name, ".jpg"), "thumbnail/", "", -1)
-    sParams, err := b64.StdEncoding.DecodeString(image_hash)
-    if err != nil {
-	    http.NotFound(w, r)
-    	return
-    }
+    request_uri := strings.Trim(r.RequestURI, "/thumbnail/")
+    request_parts := strings.Split(request_uri, "?")
+	image_parts := strings.Split(request_parts[0], "/")
+	
+	aPaths := map[string]bool {
+		"photos" : true,
+		"frames" : true,
+	}
+	
+	if len(image_parts) != 3 || !aPaths[image_parts[0]]  {
+		http.NotFound(w, r);
+	}
 
-	params := ImgParams{}
-    err = json.Unmarshal(sParams, &params);
-    if err != nil || params.Date == "" {
-	    http.NotFound(w, r)
-    	return
-    }
-    
-    var sCat string = ""
-    switch params.Type {
-    	case "images":
-    		sCat = "photos";
-    		break;
-    	case "video":
-    	case "audio":
-    		sCat = "frames";
-    		break;
-    }
-
-	file_path := "media/" + sCat + "/" + params.Date + "/" + params.Id + ".jpg"
+	file_path := "media/" + strings.Join(image_parts, "/");
     if err := getImage(file_path); err != nil {
 	    http.NotFound(w, r)
     	return
     }
+    
+	r.ParseForm()
+	width := Int(r.Form.Get("width"))
+	height := Int(r.Form.Get("height"))
+	quality := Int(r.Form.Get("quality"))
+
+	if (width == 0 && height == 0 && quality == 0) {
+		http.NotFound(w, r)
+		return
+	}
 
     options := vips.Options{
-    	Width:	int(params.Width),
-    	Height: int(params.Height),
-    	Crop:	false,
+    	Width:	width,
+    	Height: height,
+    	Crop:	true,
     	Extend:	vips.EXTEND_WHITE,
     	Interpolator: vips.BILINEAR,
-    	Gravity:	vips.CENTRE,
-    	Quality:	95,
+    	Gravity: vips.CENTRE,
+    	Quality: quality,
     }
 
 	file, _ := os.Open(file_path)
@@ -95,7 +83,18 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Content-Size", string(len(buf)))
 	w.Write(buf)
+}
 
+func Int(v string) int {
+	if v == "" {
+		return 0;
+	}
+
+	val, err := strconv.ParseInt(v, 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	return int(val)
 }
 
 func handleImage(w http.ResponseWriter, r *http.Request) {
