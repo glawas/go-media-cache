@@ -13,28 +13,26 @@ import (
     "strconv"
 )
 
+var config Configuration
+
 type Configuration struct {
     MediaServer string
-    SSLCertificateFile string
-    SSLCertificateKeyFile string
+}
+
+func initConfig() {
+    file, _ := os.Open("config.json")
+    err := json.NewDecoder(file).Decode(&config)
+    if err != nil {
+    	panic(err)
+    }
+    file.Close()
 }
 
 func main() {
+	initConfig()
     http.HandleFunc("/download", handleImage)
     http.HandleFunc("/thumbnail/", thumbnailHandler)
-    mConfig, err := getConfig()
-    if err != nil {
-	    panic(err)
-    }
     log.Fatal(http.ListenAndServe(":8888", nil))
-  	log.Fatal(http.ListenAndServeTLS(":8889", mConfig.SSLCertificateFile, mConfig.SSLCertificateKeyFile, nil))
-}
-
-func getConfig() (Configuration , error) {
-    file, _ := os.Open("config.json")
-    config := Configuration{}
-    err := json.NewDecoder(file).Decode(&config)
-    return config, err
 }
 
 func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +60,7 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
 	width := Int(r.Form.Get("width"))
 	height := Int(r.Form.Get("height"))
 	quality := Int(r.Form.Get("quality"))
+	crop := Bool(r.Form.Get("crop"))
 
 	if (width == 0 && height == 0 && quality == 0) {
 		http.NotFound(w, r)
@@ -71,7 +70,7 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
     options := vips.Options{
     	Width:	width,
     	Height: height,
-    	Crop:	true,
+    	Crop:	crop,
     	Extend:	vips.EXTEND_WHITE,
     	Interpolator: vips.BILINEAR,
     	Gravity: vips.CENTRE,
@@ -95,14 +94,22 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
 
 func Int(v string) int {
 	if v == "" {
-		return 0;
+		return 0
 	}
 
 	val, err := strconv.ParseInt(v, 0, 0)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
+		return 0
 	}
 	return int(val)
+}
+
+func Bool(v string) bool {
+	if v == "1" || strings.ToLower(v) == "true" {
+		return true
+	}
+	return false
 }
 
 func handleImage(w http.ResponseWriter, r *http.Request) {
@@ -118,7 +125,7 @@ func getImage(file_name string) error {
     if _, err := os.Stat(file_name); err == nil {
         return err
     }
-    config, _ := getConfig()
+
     uri := config.MediaServer + "/" + file_name
     return DownloadToFile(uri, file_name)
 }
