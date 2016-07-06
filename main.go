@@ -15,12 +15,19 @@ import (
 
 type Configuration struct {
     MediaServer string
+    SSLCertificateFile string
+    SSLCertificateKeyFile string
 }
 
 func main() {
     http.HandleFunc("/download", handleImage)
     http.HandleFunc("/thumbnail/", thumbnailHandler)
+    mConfig, err := getConfig()
+    if err != nil {
+	    panic(err)
+    }
     log.Fatal(http.ListenAndServe(":8888", nil))
+  	log.Fatal(http.ListenAndServeTLS(":8889", mConfig.SSLCertificateFile, mConfig.SSLCertificateKeyFile, nil))
 }
 
 func getConfig() (Configuration , error) {
@@ -40,8 +47,9 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
 		"frames" : true,
 	}
 	
-	if len(image_parts) != 3 || !aPaths[image_parts[0]]  {
+	if !aPaths[image_parts[0]]  {
 		http.NotFound(w, r);
+		return
 	}
 
 	file_path := "media/" + strings.Join(image_parts, "/");
