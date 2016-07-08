@@ -84,13 +84,13 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	file, file_err := os.Open(file_path)
-	if err != nil {
+	if file_err != nil {
 		http.NotFound(w, r)
 		return
 	}
 
 	inBuf, buff_err := ioutil.ReadAll(file)
-	if err != nil {
+	if buff_err != nil {
 		http.NotFound(w, r)
 		return
 	}
