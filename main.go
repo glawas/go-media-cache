@@ -83,8 +83,18 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
 		Quality:      quality,
 	}
 
-	file, _ := os.Open(file_path)
-	inBuf, _ := ioutil.ReadAll(file)
+	file, file_err := os.Open(file_path)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	inBuf, buff_err := ioutil.ReadAll(file)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	
 	buf, err := vips.Resize(inBuf, options)
 	if err != nil {
 		http.NotFound(w, r)
