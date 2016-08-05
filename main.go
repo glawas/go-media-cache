@@ -60,41 +60,31 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
 	width := Int(r.Form.Get("width"))
 	height := Int(r.Form.Get("height"))
 	quality := Int(r.Form.Get("quality"))
-	crop := Bool(r.Form.Get("crop"))
-	enlarge := Bool(r.Form.Get("enlarge"))
+	//crop := Bool(r.Form.Get("crop"))
+	//enlarge := Bool(r.Form.Get("enlarge"))
 
 	if width == 0 && height == 0 && quality == 0 {
 		http.NotFound(w, r)
 		return
 	}
 
-	if width != 0 && height != 0 {
-		crop = true
-	}
+//	if width != 0 && height != 0 {
+//		crop = true
+//	}
 
 	options := vips.Options{
 		Width:        width,
 		Height:       height,
-		Crop:         crop,
+		Crop:         true,
 		Extend:       vips.EXTEND_WHITE,
-		Enlarge:      enlarge,
+		Enlarge:      true,
 		Interpolator: vips.BILINEAR,
 		Gravity:      vips.CENTRE,
 		Quality:      quality,
 	}
 
-	file, file_err := os.Open(file_path)
-	if file_err != nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	inBuf, buff_err := ioutil.ReadAll(file)
-	if buff_err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	
+	file, _ := os.Open(file_path)
+	inBuf, _ := ioutil.ReadAll(file)
 	buf, err := vips.Resize(inBuf, options)
 	if err != nil {
 		http.NotFound(w, r)
